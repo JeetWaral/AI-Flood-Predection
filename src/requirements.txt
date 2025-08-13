@@ -1,0 +1,6 @@
+pandas
+pandas
+numpy
+scikit-learn
+joblib
+#Command to install all the packages: pip install -r requirements.txt
