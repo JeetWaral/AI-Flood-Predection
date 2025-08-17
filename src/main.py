@@ -1,5 +1,5 @@
 from sklearn.metrics import classification_report, confusion_matrix
-from preprocessing_script import load_data, preprocess_data, interpret_distribution
+from preprocessing_script import load_data, preprocess_data
 from randomforest_model import train_random_forest, evaluate_model, save_model
 from logs import log_results_csv 
 
@@ -11,14 +11,13 @@ def main():
     df = load_data(file_path)
 
     #Interpretting the data
-    interpret_distribution(df)
     print(df['Flood Occurred'].value_counts(normalize=True))
 
     print("More Processing on the data, like traing and test data/ Converting Categorical to Numerical.....")
     X_train, X_test, y_train, y_test, scaler, encoders = preprocess_data(df)
 
     print("Model Started training")
-    model, model_name, params = train_random_forest(X_train, y_train)
+    model, model_name= train_random_forest(X_train, y_train)
 
     # Evaluating The model
     acc, report_dict, cm = evaluate_model(model, X_test, y_test)
@@ -31,7 +30,6 @@ def main():
         report=report_dict,
         train_size=len(y_train),
         test_size=len(y_test),
-        params=params,
         notes="Baseline RF"
     )
 

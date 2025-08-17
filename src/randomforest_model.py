@@ -39,19 +39,19 @@ def train_random_forest(X, y):
     numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
 
  
-    # Here we are doing Feature Engineering
-    # Example: rainfall * soil absorption, slope * distance_from_river
+    # Here we are doing Feature Engineering, Example: rainfall * soil absorption, slope * distance_from_river etc, to get more details
     if "rainfall" in X.columns and "soil_absorption" in X.columns:
         X["rainfall_absorption"] = X["rainfall"] * X["soil_absorption"]
 
     if "slope" in X.columns and "river_distance" in X.columns:
         X["slope_river_interaction"] = X["slope"] * X["river_distance"]
 
-    # Balancing the Classes with the help of (SMOTE)
+    
+    # Using SMOTE (Synthetic Minority Over-sampling Technique) for balancing classes by generating samples for the minority class, Helps in Creating Model Biases
     smote = SMOTE(random_state=42)
     X_resampled, y_resampled = smote.fit_resample(X, y)
 
-    #  Preprocesing 
+    #  Preprocesing(SS normalize input for algo, onehot converts categories to numeric vector)
     preprocessor = ColumnTransformer(
         transformers=[
             ('num', StandardScaler(), numeric_cols),
@@ -59,7 +59,7 @@ def train_random_forest(X, y):
         ]
     )
 
-    # Pipeline 
+    # a pipeline that sequentally preprocesses inputs and trains a balanced Random Forest classifier with 200 trees.
     model = Pipeline(steps=[
         ('preprocessor', preprocessor),
         ('rf', RandomForestClassifier(
@@ -73,20 +73,10 @@ def train_random_forest(X, y):
     # Training begins here
     model.fit(X_resampled, y_resampled)
 
-    # Feature Selection (based on importance)
-    rf_model = model.named_steps['rf']
-    importances = rf_model.feature_importances_
-
-    feature_names = list(numeric_cols) + list(categorical_cols)
-    feat_imp = pd.Series(importances, index=feature_names).sort_values(ascending=False)
-
-    print("Top Feature Importances:\n", feat_imp.head(10))
-
-    return model,"Random Forest", feat_imp
+    return model,"Random Forest"
 
 
 def evaluate_model(model, X_test, y_test):
-    """Evaluate model performance on test data (prints + returns metrics)."""
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     report_text = classification_report(y_test, y_pred)
@@ -102,13 +92,11 @@ def evaluate_model(model, X_test, y_test):
 
 
 def save_model(model, scaler, label_encoders, model_file="flood_model.pkl"):
-    """Save trained model, scaler, and label encoders"""
     package = {"model": model, "scaler": scaler, "encoders": label_encoders}
     joblib.dump(package, model_file)
     print(f"Model, scaler, and encoders saved to {model_file}")
 
 
 def load_model(model_file="flood_model.pkl"):
-    """Load trained model, scaler, and encoders"""
     package = joblib.load(model_file)
     return package["model"], package["scaler"], package["encoders"]
