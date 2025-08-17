@@ -1,6 +1,8 @@
 pandas
-pandas
 numpy
 scikit-learn
+matplotlib
+seaborn
 joblib
+imblearn
 #Command to install all the packages: pip install -r requirements.txt

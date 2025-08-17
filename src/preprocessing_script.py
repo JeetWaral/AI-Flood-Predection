@@ -1,54 +1,64 @@
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 
+def load_data(file_path):
+    if file_path.endswith('.xlsx'):
+        df = pd.read_excel(file_path)
+    else:
+        df = pd.read_csv(file_path)
 
-def load_and_clean_data(filepath):
-    df = pd.read_csv(filepath)
+    df.columns = [col.replace("Â", "").replace("³", "3").replace("²", "2").strip()
+                  for col in df.columns]
 
-    # Cleaning the column names 
-    df.columns = df.columns.str.strip().str.replace(' ', '_').str.replace(r'[^\w\s]', '', regex=True)
-    df.rename(columns={'Temperature_Â°C': 'Temperature_C'}, inplace=True)
-
-    # Fill missing values
-    for col in df.columns:
-        if df[col].dtype == 'object':
-            df[col] = df[col].fillna(df[col].mode()[0])
-        else:
-            df[col] = df[col].fillna(df[col].median())
     return df
 
-def preprocess_features(df):
 
-    # Separating the target
-    X = df.drop('Flood_Occurred', axis=1)
-    y = df['Flood_Occurred']
+def preprocess_data(df, target_col="Flood Occurred"):
 
-    #Check categorical and numerical columns
-    cat_cols = X.select_dtypes(include=['object']).columns.to_list()
-    num_cols = X.select_dtypes(exclude=['object']).columns.to_list()
+    # Drop rows with missing values
+    df = df.dropna()
 
+    X = df.drop(columns=[target_col])
+    y = df[target_col]
 
-     # One-hot Library used for Convering Categorical Columns to Numericals
-    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-    if cat_cols:
-        cat_encoded = encoder.fit_transform(X[cat_cols])
-    else:
-        cat_encoded = np.array([]).reshape(len(X), 0)
+    # Encoding the categorical features 
+    cat_cols = X.select_dtypes(include=["object"]).columns
+    label_encoders = {}
+    for col in cat_cols:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col])
+        label_encoders[col] = le
 
-
-    # Thn Scalling the Numerical Columns
+    # Scaling the numerical features
     scaler = StandardScaler()
-    X_num_scaled = scaler.fit_transform(X[num_cols]) if num_cols else np.array([]).reshape(len(X), 0)
-    X_processed = np.hstack([X_num_scaled, cat_encoded])
+    X_scaled = scaler.fit_transform(X)
 
-    #Splitting the data into training and test data
+    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
-        X_processed, y, test_size=0.2, stratify=y, random_state=42
+        X_scaled, y, test_size=0.2, random_state=42, stratify=y
     )
-    y_train = y_train.values.ravel()
-    y_test = y_test.values.ravel()
+
+    return X_train, X_test, y_train, y_test, scaler, label_encoders
 
 
-    return X_train, X_test, y_train, y_test, encoder, scaler
+def interpret_distribution(df):
+    numeric_df = df.select_dtypes(include=['float64', 'int64'])
+    for col in numeric_df.columns:
+        skew = numeric_df[col].skew()
+        kurt = numeric_df[col].kurtosis()
+        print(f"\nFeature: {col}")
+        if abs(skew) < 0.5:
+            print(" - Distribution is fairly symmetric")
+        elif skew > 0.5:
+            print(" - Positively skewed (long right tail, many small values)")
+        else:
+            print(" - Negatively skewed (long left tail, many large values)")
+        
+        if kurt > 3:
+            print(" - Heavy-tailed (many outliers)")
+        elif kurt < 3:
+            print(" - Light-tailed (few outliers)")
+        else:
+            print(" - Close to normal distribution")
+
