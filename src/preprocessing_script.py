@@ -35,4 +35,3 @@ def preprocess_data(df, target_col="Flood Occurred"):
     )
 
     return X_train, X_test, y_train, y_test, scaler, label_encoders
-
