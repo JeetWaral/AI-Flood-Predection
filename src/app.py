@@ -12,6 +12,12 @@ encoders = model_bundle["encoders"]
 # ----------------- Page config -----------------
 st.set_page_config(page_title="Flood Prediction AI", layout="wide")
 
+# ----------------- Initialize session state -----------------
+if 'weather_data' not in st.session_state:
+    st.session_state.weather_data = None
+if 'city' not in st.session_state:
+    st.session_state.city = None
+
 # ----------------- CSS -----------------
 st.markdown("""
     <style>
@@ -76,6 +82,20 @@ st.markdown("""
         color: #ffffff !important;
         text-shadow: 1px 1px 4px rgba(0,0,0,0.9);
         background: none !important;
+    }
+
+    /* Expander headers - FIXED VISIBILITY */
+    .streamlit-expanderHeader {
+        background: linear-gradient(90deg, rgba(0,119,182,0.7), rgba(0,180,216,0.7)) !important;
+        color: white !important;
+        border-radius: 8px;
+        padding: 12px 15px;
+        font-weight: 600;
+        margin-top: 10px;
+        border: none !important;
+    }
+    .streamlit-expanderHeader:hover {
+        background: linear-gradient(90deg, rgba(0,119,182,0.8), rgba(0,180,216,0.8)) !important;
     }
 
     /* Buttons */
@@ -153,6 +173,10 @@ st.markdown("""
     .stTable th {
         color: #ffdd00 !important;
         font-weight: bold;
+        text-align: center;
+    }
+    .stTable td {
+        text-align: center;
     }
 
     /* Input fields */
@@ -163,6 +187,15 @@ st.markdown("""
         color: #000 !important;
         border-radius: 6px;
         padding: 6px;
+    }
+
+    /* Metrics */
+    [data-testid="stMetric"] {
+        background-color: rgba(255,255,255,0.1);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-left: 4px solid #4a90e2;
     }
 
     /* Hide Streamlit default header & footer */
@@ -184,22 +217,19 @@ st.markdown("""
         margin-top: auto;
     }
     
-    /* Expander headers */
-    .streamlit-expanderHeader {
-        background-color: rgba(255,255,255,0.1) !important;
-        color: white !important;
-        border-radius: 8px;
-        padding: 10px 15px;
-        font-weight: 600;
-        margin-top: 10px;
-    }
-    .streamlit-expanderHeader:hover {
-        background-color: rgba(255,255,255,0.2) !important;
-    }
-    
     /* Progress bar */
     .stProgress > div > div > div {
         background-color: #00b4d8;
+    }
+    
+    /* Custom cards */
+    .custom-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border-left: 4px solid #00b4d8;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -217,7 +247,7 @@ st.markdown("""
             AI Flood Prediction System
         </h1>
         <p style="font-size: 18px; font-weight: 400; margin-top: 8px;">
-            Choose manual input or fetch live weather data for flood risk prediction
+            Advanced flood risk assessment using environmental and hydrological data
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -244,34 +274,38 @@ latitude, longitude, rainfall, temperature, humidity = 0, 0, 10, 25.0, 70.0
 river_discharge, water_level, elevation = 1000, 5, 100
 land_cover, soil_type, population_density, infrastructure, historical_floods = 2, 1, 500, 2, 1
 
-weather = None
-
 # ----------------- Input Handling -----------------
 if mode == "Manual Input":
     with st.sidebar:
         st.markdown("""
             <div class="sidebar-content">
-                <h3 style="margin-top: 0;">Manual Input Panel</h3>
+                <h3 style="margin-top: 0; color: white;">Manual Input Panel</h3>
+                <p style="color: rgba(255,255,255,0.8); font-size: 14px;">
+                    Enter precise environmental and hydrological data for accurate flood prediction
+                </p>
             </div>
         """, unsafe_allow_html=True)
         
         with st.expander("Location Details", expanded=True):
-            latitude = safe_cast(st.text_input("Latitude", placeholder="-90 to 90"), float)
-            longitude = safe_cast(st.text_input("Longitude", placeholder="-180 to 180"), float)
+            latitude = safe_cast(st.text_input("Latitude", placeholder="-90 to 90", help="Enter latitude coordinate between -90 and 90"), float)
+            longitude = safe_cast(st.text_input("Longitude", placeholder="-180 to 180", help="Enter longitude coordinate between -180 and 180"), float)
 
         with st.expander("Environmental Factors", expanded=True):
-            rainfall = safe_cast(st.text_input("Rainfall (mm)", placeholder="0 to 2000"), float)
-            elevation = safe_cast(st.text_input("Elevation (m)", placeholder="-400 to 9000"), float)
+            rainfall = safe_cast(st.text_input("Rainfall (mm)", placeholder="0 to 2000", help="Total rainfall in millimeters"), float)
+            elevation = safe_cast(st.text_input("Elevation (m)", placeholder="-400 to 9000", help="Elevation above sea level in meters"), float)
 
         with st.expander("Hydrological Factors", expanded=True):
-            river_discharge = safe_cast(st.text_input("River Discharge (m³/s)", placeholder="0 to 100000"), float)
-            water_level = safe_cast(st.text_input("Water Level (m)", placeholder="0 to 100"), float)
+            river_discharge = safe_cast(st.text_input("River Discharge (m³/s)", placeholder="0 to 100000", help="Volume of water flowing through river per second"), float)
+            water_level = safe_cast(st.text_input("Water Level (m)", placeholder="0 to 100", help="Current water level measurement"), float)
 
 elif mode == "Fetch Live Weather":
     with st.sidebar:
         st.markdown("""
             <div class="sidebar-content">
-                <h3 style="margin-top: 0;">Live Weather Data</h3>
+                <h3 style="margin-top: 0; color: white;">Live Weather Data</h3>
+                <p style="color: rgba(255,255,255,0.8); font-size: 14px;">
+                    Fetch real-time weather data for selected Indian cities
+                </p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -282,30 +316,45 @@ elif mode == "Fetch Live Weather":
             "Varanasi", "Nagpur", "Surat", "Ranchi", "Chandigarh"
         ]
 
-        city = st.selectbox("Select a City (India)", indian_cities)
+        city = st.selectbox("Select a City (India)", indian_cities, help="Choose a city to fetch live weather data")
 
-        if st.button("Fetch Weather"):
+        if st.button("Fetch Weather Data"):
             try:
                 weather = get_weather_data(city)
-                st.success(f"Data fetched for {city}, {weather['country']}")
+                st.session_state.weather_data = weather
+                st.session_state.city = city
+                st.success(f"Weather data successfully fetched for {city}")
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Temperature", f"{weather['temp_c']} °C")
-                    st.metric("Humidity", f"{weather['humidity']} %")
-                with col2:
-                    st.metric("Condition", weather['condition'])
-                    st.metric("Rainfall", f"{weather.get('rainfall', 0.0)} mm")
-
-                # Override defaults
+                # Override defaults with live data
                 temperature = weather.get("temp_c", 25.0)
                 humidity = weather.get("humidity", 70.0)
-                rainfall = weather.get("rainfall", 0.0) 
+                rainfall = weather.get("rainfall", 0.0)
 
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                st.error(f"Error fetching weather data: {str(e)}")
+        
+        # Display weather metrics if data exists
+        if st.session_state.weather_data:
+            weather = st.session_state.weather_data
+            st.markdown("---")
+            st.markdown("**Current Weather Conditions**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Temperature", f"{weather['temp_c']} °C", help="Current temperature in Celsius")
+                st.metric("Humidity", f"{weather['humidity']} %", help="Relative humidity percentage")
+            with col2:
+                st.metric("Condition", weather['condition'], help="Current weather condition")
+                st.metric("Rainfall", f"{weather.get('rainfall', 0.0)} mm", help="Precipitation in millimeters")
 
 # ----------------- DataFrame -----------------
+# Use session state data if available
+if st.session_state.weather_data and mode == "Fetch Live Weather":
+    weather = st.session_state.weather_data
+    temperature = weather.get("temp_c", 25.0)
+    humidity = weather.get("humidity", 70.0)
+    rainfall = weather.get("rainfall", 0.0)
+
 input_df = pd.DataFrame([[latitude, longitude, rainfall, temperature, humidity,
     river_discharge, water_level, elevation, land_cover, soil_type,
     population_density, infrastructure, historical_floods]],
@@ -320,38 +369,99 @@ col1, col2 = st.columns(2)
 
 with col1:
     if mode == "Manual Input":
-        st.subheader("Manual Data Used")
-        st.table(
-            input_df[["Latitude","Longitude","Rainfall","Temperature","Humidity",
-                      "River Discharge","Water Level","Elevation"]]
-            .round(2).T.reset_index().rename(columns={0:"Value","index":"Parameter"})
-        )
-    elif mode == "Fetch Live Weather" and weather:
-        st.subheader("Live Weather Data")
-        api_df = pd.DataFrame([{
-            "City": city,
-            "Temperature (°C)": weather["temp_c"],
-            "Humidity (%)": weather["humidity"],
-            "Condition": weather["condition"],
-            "Rainfall (mm)": weather["rainfall"] 
-        }])
-        st.table(api_df.T)
+        st.markdown("""
+            <div class="custom-card">
+                <h3>Manual Input Data</h3>
+                <p>Review the parameters used for flood prediction analysis</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        preview_df = input_df[["Latitude","Longitude","Rainfall","Temperature","Humidity",
+                              "River Discharge","Water Level","Elevation"]].round(2).T
+        preview_df.columns = ["Values"]
+        preview_df.index.name = "Parameter"
+        st.dataframe(preview_df, use_container_width=True)
+        
+    elif mode == "Fetch Live Weather" and st.session_state.weather_data:
+        st.markdown("""
+            <div class="custom-card">
+                <h3>Live Weather Data</h3>
+                <p>Real-time meteorological information for flood risk assessment</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        weather = st.session_state.weather_data
+        api_df = pd.DataFrame({
+            "Parameter": ["City", "Temperature (°C)", "Humidity (%)", "Condition", "Rainfall (mm)"],
+            "Values": [st.session_state.city, weather["temp_c"], weather["humidity"], 
+                      weather["condition"], weather.get("rainfall", 0.0)]
+        }).set_index("Parameter")
+        
+        st.dataframe(api_df, use_container_width=True)
 
 with col2:
-    st.subheader("Model Prediction")
-    if st.button("Predict Flood Risk"):
+    st.markdown("""
+        <div class="custom-card">
+            <h3>Model Prediction</h3>
+            <p>AI-powered flood risk assessment based on input parameters</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Analyze Flood Risk", type="primary"):
         prediction = model.predict(X_scaled)[0]
+        probability = model.predict_proba(X_scaled)[0]
 
         if prediction == 1:
-            st.markdown("<div class='result-card risk'>HIGH RISK: Flood Likely!</div>", unsafe_allow_html=True)
-            st.progress(100)
+            risk_level = "HIGH RISK"
+            risk_color = "risk"
+            risk_percentage = probability[1] * 100
+            st.markdown(f"<div class='result-card {risk_color}'>{risk_level}: Flood Likely! ({risk_percentage:.1f}% probability)</div>", unsafe_allow_html=True)
+            st.progress(risk_percentage/100)
+            
+            # Additional risk information
+            st.markdown("""
+                <div style="background: rgba(255,200,200,0.2); padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <h4>⚠️ Risk Advisory</h4>
+                    <p>Based on current conditions, there is a high probability of flooding. Recommended actions:</p>
+                    <ul>
+                        <li>Monitor water levels continuously</li>
+                        <li>Prepare evacuation plans if in flood-prone area</li>
+                        <li>Stay updated with official weather alerts</li>
+                        <li>Secure important documents and belongings</li>
+                    </ul>
+                </div>
+            """, unsafe_allow_html=True)
         else:
-            st.markdown("<div class='result-card safe'>SAFE: Flood Not Likely</div>", unsafe_allow_html=True)
-            st.progress(30)
+            risk_level = "SAFE"
+            risk_color = "safe"
+            safe_percentage = probability[0] * 100
+            st.markdown(f"<div class='result-card {risk_color}'>{risk_level}: Flood Not Likely ({safe_percentage:.1f}% confidence)</div>", unsafe_allow_html=True)
+            st.progress(safe_percentage/100)
+            
+            # Additional safety information
+            st.markdown("""
+                <div style="background: rgba(200,255,200,0.2); padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <h4>✅ Safety Status</h4>
+                    <p>Current conditions indicate low flood risk. Maintain regular monitoring:</p>
+                    <ul>
+                        <li>Continue standard weather awareness</li>
+                        <li>Review emergency preparedness plans</li>
+                        <li>Monitor local water body levels</li>
+                        <li>Stay informed about changing conditions</li>
+                    </ul>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        # Show model confidence
+        st.markdown(f"""
+            <div style="text-align: center; margin-top: 15px;">
+                <p style="color: rgba(255,255,255,0.8);">Model Confidence: {max(probability)*100:.1f}%</p>
+            </div>
+        """, unsafe_allow_html=True)
 
 # ----------------- Footer -----------------
 st.markdown("""
     <div class="footer">
-        Developed by <b>Team FloodGuard AI</b>
+        Developed by <b>Team FloodGuard AI</b> | Advanced Flood Prediction System v2.1
     </div>
 """, unsafe_allow_html=True)

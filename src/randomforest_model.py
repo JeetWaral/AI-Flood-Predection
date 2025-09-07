@@ -9,26 +9,6 @@ from sklearn.compose import ColumnTransformer
 import numpy as np
 from imblearn.over_sampling import SMOTE
 
-# def train_random_forest(X_train, y_train):
-      # Trying to train Random Forest by giving  the no of estimators and the no of random states
-#     rf = RandomForestClassifier(n_estimators=100, random_state=42)
-#     rf.fit(X_train, y_train)
-
-#     # Geting the feature names safely to avoid failing
-#     if hasattr(X_train, 'columns'):   # If DataFrame
-#         feature_names = X_train.columns
-#     else:
-#         feature_names = [f"feature_{i}" for i in range(X_train.shape[1])]
-
-#     importances = rf.feature_importances_
-#     feature_importances = sorted(zip(importances, feature_names), reverse=True)
-
-#     print("\nTop 10 Important Features:")
-#     for importance, name in feature_importances[:10]:
-#         print(f"{name}: {importance:.4f}")
-
-#     return rf, "RandomForestClassifier", rf.get_params()
-
 def train_random_forest(X, y):
     # Converting the Columns to DataFrame if needed
     if isinstance(X, np.ndarray):
